@@ -7,7 +7,12 @@
 
 
 
-
+(defn get-error-function
+  [namespace logmap]
+  (let [error-fn-maker (eval (symbol (str "clojush.problems.software." namespace
+                                          "/make-" namespace "-error-function-from-cases")))]
+    (error-fn-maker (:training-cases logmap)
+                    (:test-cases logmap))))
 
 (defn add-translated-program-to-logmap
   "Translates the genome of the logmap into a program and adds it to the logmap"
@@ -26,6 +31,14 @@
   "Arguments are EDN files to process."
   [& args]
   ;(println (replace-space-input 10))
-  (doseq [edn-file args]
-    (prn (take 5 (:training-cases (add-translated-program-to-logmap (get-logmap-from-edn edn-file)))))
-    (System/exit 0)))
+  (let [namespace (first args)
+        edn-files (rest args)]
+    (require (symbol (str "clojush.problems.software." namespace)))
+    (doseq [edn-file edn-files]
+      (let [logmap (add-translated-program-to-logmap (get-logmap-from-edn edn-file))
+            error-fn (get-error-function namespace logmap)]
+        (println (error-fn '(in1 print_string)))
+        ;(println (error-fn (:program logmap))) ;should be perfect -- MAYBE NEED TO UPDATE EVALPUSH AND MAX-POINTS???
+        (System/exit 0)))))
+
+
