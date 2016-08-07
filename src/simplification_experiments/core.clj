@@ -5,8 +5,11 @@
            [clojush.globals :as globals]
            [clojush.simplification :as simplification]
            [clojush.util]
-           ;[clojush.problems.software.replace-space-with-newline :refer [replace-space-input]]
            ))
+
+; NOTE:
+; normal GP run: 300 gens * 1000 inds = 300,000 evals
+; simp exp: 100 trials * 10000 steps = 1,000,000 evals
 
 (def trials 100)
 
@@ -15,6 +18,7 @@
 (defn program-simplification-experiment
   "Uses program simplfiication multiple times to explore the outcomes."
   [logmap error-fn out-file]
+  (spit out-file "Program simplification")
   (doseq [i (range trials)]
     (spit out-file
           (with-out-str
@@ -28,6 +32,35 @@
                              1)
                   simp-prog (:program simp-ind)
                   simp-test-errors (error-fn simp-prog :test)]
+              (println "Simplified Program:" (pr-str simp-prog))
+              (println "Simplified Program Size (points):" (clojush.util/count-points simp-prog))
+              (println "Simplified Train Errors:" (:errors simp-ind))
+              (println "Simplified Total Train Error:" (apply +' (:errors simp-ind)))
+              (println "Simplified Test Errors:" simp-test-errors)
+              (println "Simplified Total Test Error:" (apply +' simp-test-errors))))
+          :append true)))
+
+(defn genome-simplification-experiment
+  "Uses genome simplfiication multiple times to explore the outcomes."
+  [logmap error-fn out-file step-probabilities]
+  (spit out-file (str "Genome simplification with step probabilities: "
+                      (pr-str step-probabilities))
+        :append true)
+  (doseq [i (range trials)]
+    (spit out-file
+          (with-out-str
+            (println "\n---------------")
+            (println "Trial" i)
+            (let [simp-ind (simplification/auto-simplify-plush
+                             {:genome (:genome logmap)}
+                             error-fn
+                             steps-per-trial
+                             0
+                             step-probabilities)
+                  simp-prog (:program simp-ind)
+                  simp-test-errors (error-fn simp-prog :test)]
+              (println "Simplified Genome:" (pr-str (:genome simp-ind)))
+              (println "Simplified Genome Size (length):" (count (:genome simp-ind)))
               (println "Simplified Program:" (pr-str simp-prog))
               (println "Simplified Program Size (points):" (clojush.util/count-points simp-prog))
               (println "Simplified Train Errors:" (:errors simp-ind))
@@ -91,17 +124,33 @@
         (spit out-file (with-out-str (print-program-and-generalization logmap error-fn)))
         (case simplification-type
           :program (program-simplification-experiment logmap error-fn out-file)
-          :genome nil
-          :genome-backtracking nil
-          :genome-noop nil
-          :genome-backtracking-noop nil
-          :else nil)
-        
-        #_(spit out-file (pr-str (:program logmap)) :append true)
-        #_(println (error-fn (:program logmap))) ;should be perfect
-        (System/exit 0)))))
-
-
-; normal GP run: 300 gens * 1000 inds = 300,000 evals
-; simp exp: 100 trials * 10000 steps = 1,000,000 evals
-
+          :genome (genome-simplification-experiment logmap error-fn out-file
+                                                    {{:silence 1} 0.5
+                                                     {:silence 2} 0.3
+                                                     {:silence 3} 0.1
+                                                     {:silence 4} 0.1})
+          :genome-backtracking (genome-simplification-experiment logmap error-fn out-file
+                                                                 {{:silence 1} 0.4
+                                                                  {:silence 2} 0.25
+                                                                  {:silence 3} 0.1
+                                                                  {:silence 4} 0.05
+                                                                  {:silence 1 :unsilence 1} 0.05
+                                                                  {:silence 2 :unsilence 1} 0.1
+                                                                  {:silence 3 :unsilence 1} 0.05})
+          :genome-noop (genome-simplification-experiment logmap error-fn out-file
+                                                         {{:silence 1} 0.4
+                                                          {:silence 2} 0.25
+                                                          {:silence 3} 0.1
+                                                          {:silence 4} 0.05
+                                                          {:no-op 1} 0.1
+                                                          {:no-op 2} 0.1})
+          :genome-backtracking-noop (genome-simplification-experiment logmap error-fn out-file
+                                                                      {{:silence 1} 0.3
+                                                                       {:silence 2} 0.2
+                                                                       {:silence 3} 0.1
+                                                                       {:silence 1 :unsilence 1} 0.05
+                                                                       {:silence 2 :unsilence 1} 0.1
+                                                                       {:silence 3 :unsilence 1} 0.05
+                                                                       {:no-op 1} 0.1
+                                                                       {:no-op 2} 0.1})
+          :else nil)))))
