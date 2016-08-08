@@ -18,7 +18,7 @@
 (defn program-simplification-experiment
   "Uses program simplfiication multiple times to explore the outcomes."
   [logmap error-fn out-file]
-  (spit out-file "Program simplification")
+  (spit out-file "Program simplification" :append true)
   (doseq [i (range trials)]
     (spit out-file
           (with-out-str
