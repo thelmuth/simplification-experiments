@@ -4,5 +4,5 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 [clojush "2.3.1"]]
+                 [clojush "2.4.0"]]
   :main ^:skip-aot simplification-experiments.core)
